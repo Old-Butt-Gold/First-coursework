@@ -1,0 +1,477 @@
+Unit ChessBoard;
+
+interface
+
+uses
+    Winapi.Windows, Vcl.Graphics, SysUtils, UnitSound, Vcl.Controls,
+    DateUnit, LinkedListUnit;
+
+type
+    TChessMove = record
+        Start, Destination: TChessPos;
+    end;
+
+    TFileRecord = Record
+        FixedWhitePiecesPos, FixedBlackPiecesPos: TArrFixedPiecesPos;
+        IconsStyle: ShortString;
+        CurrentColor: TChessColor;
+    end;
+
+    TChessBoard = class(TChess)
+    private
+        FCurrentClick: TChessPos;
+        FCurrentMovePos: TChessMove;
+        FCanvas: TCanvas;
+        FMoveSound, FDieSound, FStartSound: TSound;
+        FIsSelectPiece: Boolean;
+        FKilledWhitePos, FKilledBlackPos: TChessPos;
+        FCurrentMoveColor: TChessColor;
+        IsShahWhite, IsShahBlack: Boolean;
+        ArrPossibleMoves: TArrChessPos;
+        FStyleName: ShortString;
+        LinkLists: TLinkedUnit;
+        Const FBackgroundColor: TColor = 3615019;
+        Const FOddCellColor: TColor = 108 or (65 shl 8) or (95 shl 16);
+        Const FDangerColor: TColor = 235;
+        Const FSelectColor: TColor = 220 or (220 shl 8) or (100 shl 16);
+        Procedure ChangePiece(X, Y: Integer; Path: String);
+        Procedure CheckForKilledPosition(Color: TChessColor);
+        Function GetNameOfIcon(ChessType: TChessPiece): String;
+        procedure MakeMove(XStart, YStart, XEnd, YEnd: Integer);
+        Procedure DrawDesignations;
+        Procedure DrawAllCells;
+        Procedure DrawPossibleMoves(X, Y: Integer);
+        Procedure UnDrawPossibleMoves;
+        Procedure DrawCell(Color: TColor; I, J: Integer);
+        Procedure DrawIfIsCheck;
+        Procedure SetStartKilledCoord;
+        Procedure SelectColor(X, Y: Integer);
+        Procedure DrawIfSelect;
+        Procedure AnnounceResult(FinalMessage: String);
+    public
+        Procedure CheckClick(X, Y: Integer);
+        Procedure PaintBoard;
+        Procedure ResetPieceIcons(Path, StyleName: String);
+        Constructor Create(ACanvas: TCanvas; Path: String);
+        Destructor Destroy; override;
+        Procedure SaveLogToFile(Path: String);
+        Procedure SaveGame(Path: String);
+        Procedure LoadGame(Path: String);
+        Property CurrentColor: TChessColor read FCurrentMoveColor;
+        Property IsSelectPiece: Boolean read FIsSelectPiece write FIsSelectPiece;
+    end;
+
+implementation
+
+Uses UnitMain, UnitChoosePiece;
+
+Destructor TChessBoard.Destroy;
+Begin
+    Inherited Destroy;
+    FStartSound.Destroy;
+    FMoveSound.Destroy;
+    FDieSound.Destroy;
+    LinkLists.Destroy;
+End;
+
+Function TChessBoard.GetNameOfIcon(ChessType: TChessPiece): String;
+Begin
+    Case ChessType of
+        CpPawn:
+            GetNameOfIcon := '_pawn.bmp';
+        CpRook:
+            GetNameOfIcon := '_rook.bmp';
+        CpKnight:
+            GetNameOfIcon := '_knight.bmp';
+        CpBishop:
+            GetNameOfIcon := '_bishop.bmp';
+        CpQueen:
+            GetNameOfIcon := '_queen.bmp';
+        CpKing:
+            GetNameOfIcon := '_king.bmp';
+    end;
+End;
+
+Procedure TChessBoard.LoadGame(Path: String);
+Var
+    FileInput: File of TFileRecord;
+    Temp: TFileRecord;
+    I, J: Integer;
+    Dir: String;
+Begin
+    Try
+        Try
+            AssignFile(FileInput, ChangeFileExt(Path, '.dat'));
+            Reset(FileInput);
+            Read(FileInput, Temp);
+            Var ErrorCode := IOResult;
+            Dir := ExtractFileDir(paramStr(0)) + '\' + Temp.IconsStyle;
+            If DirectoryExists(Dir) and (FMainForm.CountOfFiles(Dir) = 12) Then
+                FStyleName := Temp.IconsStyle
+            Else
+                Dir := ExtractFileDir(paramStr(0)) + '\' + FStyleName;
+            SetStartKilledCoord;
+            FCurrentMoveColor := Temp.CurrentColor;
+            MakeEmptyBitMaps;
+            LinkLists.Destroy;
+            LinkLists := TLinkedUnit.Create;
+            For I := 0 to 7 do
+                For J := 0 to 7 do
+                Begin
+                    FBoard[I,J].Piece := CpNone;
+                    FBoard[I,J].Color := CcNone;
+                    FBoard[I,J].Tag := 0;
+                End;
+            For I := 1 to 16 do
+            Begin
+                FWhitePieces[I] := Temp.FixedWhitePiecesPos[I];
+                If FWhitePieces[I].IsKilled Then
+                Begin
+                    LinkLists.AddKilledPieceFromFile(FWhitePieces[I].ChessType, Dir + 'w' + GetNameOfIcon(FWhitePieces[I].ChessType), FKilledWhitePos);
+                    CheckForKilledPosition(CcBlack);
+                End
+                Else
+                Begin
+                    FBoard[FWhitePieces[I].IndexI, FWhitePieces[I].IndexJ].Tag := I;
+                    FBoard[FWhitePieces[I].IndexI, FWhitePieces[I].IndexJ].Color := CcWhite;
+                    FBoard[FWhitePieces[I].IndexI, FWhitePieces[I].IndexJ].Piece := FWhitePieces[I].ChessType;
+                    ChangePiece(FWhitePieces[I].IndexI, FWhitePieces[I].IndexJ, Dir + 'w' + GetNameOfIcon(FWhitePieces[I].ChessType));
+                End;
+
+                FBlackPieces[I] := Temp.FixedBlackPiecesPos[I];
+                If FBlackPieces[I].IsKilled Then
+                Begin
+                    LinkLists.AddKilledPieceFromFile(FBlackPieces[I].ChessType, Dir + 'b' + GetNameOfIcon(FBlackPieces[I].ChessType), FKilledBlackPos);
+                    CheckForKilledPosition(CcWhite);
+                End
+                Else
+                Begin
+                    FBoard[FBlackPieces[I].IndexI, FBlackPieces[I].IndexJ].Tag := I;
+                    FBoard[FBlackPieces[I].IndexI, FBlackPieces[I].IndexJ].Color := CcBlack;
+                    FBoard[FBlackPieces[I].IndexI, FBlackPieces[I].IndexJ].Piece := FBlackPieces[I].ChessType;
+                    ChangePiece(FBlackPieces[I].IndexI, FBlackPieces[I].IndexJ, Dir + 'b' + GetNameOfIcon(FBlackPieces[I].ChessType));
+                End
+            End;
+            FMainForm.TLogMemo.Clear;
+            IsShahWhite := IsKingInDanger(FWhitePieces, FBlackPieces);
+            IsShahBlack := IsKingInDanger(FBlackPieces, FWhitePieces);
+        Except
+            MessageBox(FMainForm.Handle, 'File isn''t correct. Try another file!', 'Warning!', MB_OK + MB_ICONWARNING);
+        End;
+    Finally
+        If FileExists(ChangeFileExt(Path, '.dat')) Then
+            CloseFile(FileInput);
+    End;
+End;
+
+Procedure TChessBoard.SaveGame(Path: String);
+Var
+    FileOutput: File of TFileRecord;
+    Temp: TFileRecord;
+Begin
+    Try
+        Try
+            AssignFile(FileOutput, ChangeFileExt(Path, '.dat'));
+            Rewrite(FileOutput);
+            Temp.FixedWhitePiecesPos := FWhitePieces;
+            Temp.FixedBlackPiecesPos := FBlackPieces;
+            Temp.IconsStyle := FStyleName;
+            Temp.CurrentColor := FCurrentMoveColor;
+            Write(FileOutput, Temp);
+        Except
+            MessageBox(FMainForm.Handle, 'File isn''t correct. Try with another file!', 'Warning!', MB_OK + MB_ICONWARNING);
+        End;
+    Finally
+        CloseFile(FileOutput);
+    End;
+End;
+
+Procedure TChessBoard.SaveLogToFile(Path: String);
+Begin
+    LinkLists.SaveLogToFile(Path);
+End;
+
+Procedure TChessBoard.SetStartKilledCoord;
+Begin
+    FKilledWhitePos.X := FMainForm.TLogMemo.Left - 400;
+    FKilledWhitePos.Y := FMainForm.TLogMemo.Top + 20;
+    FKilledBlackPos.X := FMainForm.TLogMemo.Left - 200;
+    FKilledBlackPos.Y := FMainForm.TLogMemo.Top + 20;
+End;
+
+Constructor TChessBoard.Create(ACanvas: TCanvas; Path: String);
+Begin
+    Inherited Create(Path);
+    LinkLists := TLinkedUnit.Create;
+    FCanvas := ACanvas;
+    FStyleName := Copy(Path, LastDelimiter('\', Path) + 1, 10) + '\';
+    FCurrentMoveColor := ccWhite;
+    FMoveSound := TSound.Create('MakeMove.wav');
+    FDieSound := TSound.Create('PieceDied.wav');
+    FStartSound := TSound.Create('StartGame.wav');
+    SetStartKilledCoord;
+    If FstartSound.Available Then
+        FStartSound.PlayMusic;
+    FMainForm.TLogMemo.Lines.Add('Game starts!');
+    LinkLists.InsertCurrentStroke(FMainForm.TLogMemo.Lines[FMainForm.TLogMemo.Lines.Count - 1]);
+End;
+
+Procedure TChessBoard.SelectColor(X, Y: Integer);
+Begin
+    If (X + Y) Mod 2 = 1 Then
+    Begin
+        FCanvas.Pen.Color := FOddCellColor;
+        DrawCell(FOddCellColor, X, Y);
+    End
+    Else
+    Begin
+        FCanvas.Pen.Color := ClWhite;
+        DrawCell(ClWhite, X, Y);
+    End;
+End;
+
+Procedure TChessBoard.ChangePiece(X, Y: Integer; Path: String);
+Begin
+    FBoard[X, Y].BitMap.Assign(Nil);
+    FBoard[X, Y].BitMap.LoadFromFile(Path);
+    SelectColor(X, Y);
+End;
+
+Procedure TChessBoard.ResetPieceIcons(Path, StyleName: string);
+Var
+    I: Integer;
+Begin
+    For I := 1 to 16 do
+    Begin
+        If Not(FWhitePieces[I].IsKilled) Then
+          ChangePiece(FWhitePieces[I].IndexI, FWhitePieces[I].IndexJ, Path + 'w' + GetNameOfIcon(FWhitePieces[I].ChessType));
+        If Not(FBlackPieces[I].IsKilled) Then
+          ChangePiece(FBlackPieces[I].IndexI, FBlackPieces[I].IndexJ, Path + 'b' + GetNameOfIcon(FBlackPieces[I].ChessType));
+    End;
+    FCanvas.Pen.Color := FBackgroundColor;
+    FCanvas.Brush.Color := FBackgroundColor;
+    FStyleName := StyleName;
+    LinkLists.ResetKilledIcons(Path, FCanvas);
+    If IsSelectPiece Then
+        DrawCell(FSelectColor, FCurrentMovePos.Start.X div BoundsOfSquare, FCurrentMovePos.Start.Y div BoundsOfSquare);
+    DrawIfIsCheck;
+End;
+
+Procedure TChessBoard.CheckClick(X, Y: Integer);
+Begin
+    FCurrentClick.X := Y;
+    FCurrentClick.Y := X;
+    If (FCurrentClick.X < EndBound.X) and (FCurrentClick.Y < EndBound.Y) and IsSelectPiece Then
+    Begin
+        FCurrentMovePos.Destination := FCurrentClick;
+        UnDrawPossibleMoves;
+        MakeMove(FCurrentMovePos.Start.X div BoundsOfSquare, FCurrentMovePos.Start.Y div BoundsOfSquare,
+        FCurrentMovePos.Destination.X div BoundsOfSquare, FCurrentMovePos.Destination.Y div BoundsOfSquare);
+    End;
+    If (FCurrentClick.X < EndBound.X) and (FCurrentClick.Y < EndBound.Y) and
+    (GetPieceType(FCurrentClick) <> CpNone) and (CurrentColor = GetPieceColor(FCurrentClick)) and Not(IsSelectPiece) Then
+    Begin
+        FCurrentMovePos.Start := FCurrentClick;
+        IsSelectPiece := True;
+        DrawCell(FSelectColor, FCurrentClick.X div BoundsOfSquare, FCurrentClick.Y div BoundsOfSquare);
+        DrawPossibleMoves(FCurrentClick.X div BoundsOfSquare, FCurrentClick.Y div BoundsOfSquare);
+    End
+    Else
+    Begin
+        IsSelectPiece := False;
+        SelectColor(FCurrentMovePos.Start.X div BoundsOfSquare, FCurrentMovePos.Start.Y div BoundsOfSquare);
+        UnDrawPossibleMoves;
+        DrawIfIsCheck;
+    End;
+End;
+
+Procedure TChessBoard.DrawDesignations;
+Var
+    I: Integer;
+Begin
+    With FCanvas do
+    Begin
+        Font.Color := ClWhite;
+        Brush.Style := BsClear;
+        Font.Height := 60;
+        For I := 0 to 7 do
+        Begin
+            TextOut(FBoardPos[7, I].X + 24, FBoardPos[7, I].Y + 80, Chr(97 + I));
+            TextOut(FBoardPos[I, 7].X + 85, FBoardPos[I, 7].Y + 8, IntToStr(Length(FBoard) - I));
+        End;
+    End;
+End;
+
+Procedure TChessBoard.DrawIfSelect;
+Var
+    I: Integer;
+Begin
+    FCanvas.Brush.Color := ClYellow;
+    If IsSelectPiece Then
+    Begin
+        For I := Low(ArrPossibleMoves) to High(ArrPossibleMoves) do
+            If Not(CheckForShahItSelf(FCurrentMoveColor, FCurrentMovePos.Start.X div BoundsOfSquare, FCurrentMovePos.Start.Y div BoundsOfSquare, ArrPossibleMoves[I].X, ArrPossibleMoves[I].Y)) Then
+                FCanvas.Ellipse(BoundsOfSquare * ArrPossibleMoves[I].Y + 20, BoundsOfSquare * ArrPossibleMoves[I].X  + 20,
+                BoundsOfSquare * ArrPossibleMoves[I].Y + 60, BoundsOfSquare * ArrPossibleMoves[I].X + 60);
+        DrawCell(FSelectColor, FCurrentMovePos.Start.X div BoundsOfSquare, FCurrentMovePos.Start.Y div BoundsOfSquare);
+    End;
+End;
+
+Procedure TChessBoard.PaintBoard;
+Begin
+    DrawAllCells;
+    DrawDesignations;
+    LinkLists.DrawKilledPieces(FCanvas);
+    DrawIfIsCheck;
+    DrawIfSelect;
+End;
+
+Procedure TChessBoard.DrawAllCells;
+Var
+    I, J: Integer;
+Begin
+    For I := 0 to 7 do
+        For J := 0 to 7 do
+            SelectColor(I, J);
+End;
+
+Procedure TChessBoard.DrawCell(Color: TColor; I, J: Integer);
+Begin
+    FCanvas.Brush.Color := Color;
+    FCanvas.Rectangle(FBoardPos[I,J].X, FBoardPos[I,J].Y, FBoardPos[I,J].X + BoundsOfSquare, FBoardPos[I,J].Y + BoundsOfSquare);
+    FCanvas.Draw(FBoardPos[I, J].X, FBoardPos[I, J].Y, FBoard[I, J].BitMap);
+End;
+
+Procedure TChessBoard.DrawIfIsCheck;
+Begin
+    FCanvas.Pen.Color := FDangerColor;
+    If IsShahWhite Then
+        DrawCell(FDangerColor, FWhitePieces[16].IndexI, FWhitePieces[16].IndexJ)
+    Else
+        SelectColor(FWhitePieces[16].IndexI, FWhitePieces[16].IndexJ);
+    If IsShahBlack Then
+        DrawCell(FDangerColor, FBlackPieces[16].IndexI, FBlackPieces[16].IndexJ)
+    Else
+        SelectColor(FBlackPieces[16].IndexI, FBlackPieces[16].IndexJ);
+End;
+
+Procedure TChessBoard.UnDrawPossibleMoves;
+Var
+    I: Integer;
+Begin
+    For I := Low(ArrPossibleMoves) to High(ArrPossibleMoves) do
+        SelectColor(ArrPossibleMoves[I].X, ArrPossibleMoves[I].Y);
+    ArrPossibleMoves := Nil;
+End;
+
+Procedure TChessBoard.DrawPossibleMoves(X, Y: Integer);
+Var
+    I: Integer;
+Begin
+    FCanvas.Brush.Color := ClYellow;
+    ArrPossibleMoves := GetPossibleMoves(X, Y);
+    For I := Low(ArrPossibleMoves) to High(ArrPossibleMoves) do
+        If Not(CheckForShahItSelf(FCurrentMoveColor, X, Y, ArrPossibleMoves[I].X, ArrPossibleMoves[I].Y)) Then
+            FCanvas.Ellipse(BoundsOfSquare * ArrPossibleMoves[I].Y + 20, BoundsOfSquare * ArrPossibleMoves[I].X  + 20,
+            BoundsOfSquare * ArrPossibleMoves[I].Y + 60, BoundsOfSquare * ArrPossibleMoves[I].X + 60);
+End;
+
+Procedure TChessBoard.CheckForKilledPosition(Color: TChessColor);
+Begin
+    If Color = CcWhite Then
+    Begin
+        Inc(FKilledBlackPos.Y, BoundsOfSquare);
+        If FKilledBlackPos.Y > EndBound.Y Then
+        Begin
+            Inc(FKilledBlackPos.X, 100);
+            FKilledBlackPos.Y := 20;
+        End;
+    End
+    Else
+    Begin
+        Inc(FKilledWhitePos.Y, BoundsOfSquare);
+        If FKilledWhitePos.Y > EndBound.Y Then
+        Begin
+            Inc(FKilledWhitePos.X, 100);
+            FKilledWhitePos.Y := 20;
+        End;
+    End;
+End;
+
+Procedure TChessBoard.AnnounceResult(FinalMessage: string);
+Begin
+    FMainForm.TLogMemo.Lines.Append(FinalMessage);
+    LinkLists.InsertCurrentStroke(FMainForm.TLogMemo.Lines[FMainForm.TLogMemo.Lines.Count - 1]);
+    FMainForm.State := GsEnd;
+End;
+
+procedure TChessBoard.MakeMove(XStart, YStart, XEnd, YEnd: Integer);
+Var
+    StartTagPiece: Integer;
+Begin
+    StartTagPiece := FBoard[XEnd, YEnd].Tag;
+    If ((XStart = XEnd) and (YStart = YEnd)) or (FBoard[XStart, YStart].Color = FBoard[XEnd, YEnd].Color) Then
+        Exit;
+    If IsLegalMove(XStart, YStart, XEnd, YEnd, FBoard[XStart, YStart].Piece) Then
+    Begin
+        If CheckForShahItself(FCurrentMoveColor, XStart, YStart, XEnd, YEnd) Then
+            Exit;
+        If FCurrentMoveColor = CcWhite Then
+        Begin
+            FWhitePieces[FBoard[XStart, YStart].Tag].IndexI := XEnd;
+            FWhitePieces[FBoard[XStart, YStart].Tag].IndexJ := YEnd;
+            If (FBoard[XEnd, YEnd].Color = CcBlack) Then
+            Begin
+                LinkLists.InsertKilledPiece(FKilledBlackPos, FBoard[XEnd, YEnd].Piece, FBoard[XEnd, YEnd].BitMap, XEnd, YEnd);
+                FCanvas.Draw(FKilledBlackPos.X, FKilledBlackPos.Y, FBoard[XEnd, YEnd].BitMap);
+                CheckForKilledPosition(FCurrentMoveColor);
+                FBlackPieces[StartTagPiece].IsKilled := True;
+                FDieSound.PlayMusic;
+            End
+            Else
+                FMoveSound.PlayMusic;
+            FCurrentMoveColor := Succ(FCurrentMoveColor)
+        End
+        Else
+        Begin
+            FBlackPieces[FBoard[XStart, YStart].Tag].IndexI := XEnd;
+            FBlackPieces[FBoard[XStart, YStart].Tag].IndexJ := YEnd;
+            If (FBoard[XEnd, YEnd].Color = CcWhite) Then
+            Begin
+                LinkLists.InsertKilledPiece(FKilledWhitePos, FBoard[XEnd, YEnd].Piece, FBoard[XEnd, YEnd].BitMap, XEnd, YEnd);
+                FCanvas.Draw(FKilledWhitePos.X, FKilledWhitePos.Y, FBoard[XEnd, YEnd].BitMap);
+                CheckForKilledPosition(FCurrentMoveColor);
+                FWhitePieces[StartTagPiece].IsKilled := True;
+                FDieSound.PlayMusic;
+            End
+            Else
+                FMoveSound.PlayMusic;
+            FCurrentMoveColor := Pred(FCurrentMoveColor);
+        End;
+        ChangePositionsOnBoard(XStart, YStart, XEnd, YEnd);
+        SelectColor(XEnd, YEnd);
+        SelectColor(XStart, YStart);
+        LinkLists.InsertCurrentMoveText(FCurrentMoveColor, FBoard[XEnd, YEnd].Tag, YStart, XStart, YEnd, XEnd);
+        If IsPawnAtEnd(XEnd, YEnd, ExtractFileDir(paramStr(0)) + '\' + FStyleName) Then
+            SelectColor(XEnd, YEnd);
+        If FMainForm.Reverse.Checked Then
+        Begin
+            SwapPieces;
+            DrawAllCells;
+        End;
+        IsShahWhite := IsKingInDanger(FWhitePieces, FBlackPieces);
+        IsShahBlack := IsKingInDanger(FBlackPieces, FWhitePieces);
+        If IsShahWhite and CheckMate(FCurrentMoveColor, FWhitePieces, FBlackPieces) Then
+            AnnounceResult('Black wins!')
+        Else If IsShahBlack and CheckMate(FCurrentMoveColor, FBlackPieces, FWhitePieces) Then
+            AnnounceResult('White wins!')
+        Else If IsStaleMate(FCurrentMoveColor) Then
+            AnnounceResult('StaleMate!')
+        Else If IsTie(FCurrentMoveColor) Then
+            AnnounceResult('Draw!');
+        DrawIfIsCheck;
+    End;
+End;
+
+
+end.

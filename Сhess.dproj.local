@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>1899.12.30 00:00:00.000.212,D:\Курсач 3.0\Шахматы.dproj=D:\Курсач 3.0\Chess.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.530,D:\Курсач 3.0\UnitMain.dfm=C:\Users\andre\Documents\Embarcadero\Studio\Projects\Unit1.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.516,D:\Курсач 3.0\UnitChoosePiece.pas=D:\Курсач 3.0\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.530,D:\Курсач 3.0\UnitMain.pas=C:\Users\andre\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.516,D:\Курсач 3.0\UnitChoosePiece.dfm=D:\Курсач 3.0\Unit1.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.692,=D:\Курсач 3.0\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.695,D:\Курсач 3.0\LinkedListUnit.pas=D:\Курсач 3.0\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.302,D:\Курсач 3.0\LogicUnit.pas=</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.410,D:\Курсач 3.0\UnitSound.pas=D:\Курсач 3.0\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.247,=C:\Users\andre\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.035,=C:\Users\andre\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.438,=C:\Users\andre\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.449,=C:\Users\andre\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.819,=C:\Users\andre\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.995,D:\Курсач 3.0\Ches.dproj=D:\Курсач 3.0\Chess.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.515,D:\Курсач 3.0\Ches.dproj=D:\Курсач 3.0\Chess.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.898,D:\Курсач 3.0\Ches.dproj=D:\Курсач 3.0\chess.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.538,=C:\Users\andre\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.592,=D:\Курсач 3.0\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.795,D:\Курсач 3.0\Chess.dproj=D:\Курсач 3.0\Ches.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.706,D:\Курсач 3.0\Chess.dproj=C:\Users\andre\Documents\Embarcadero\Studio\Projects\Project1.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.577,D:\Курсач 3.0\Unit1.pas=D:\Курсач 3.0\ChessBoard.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.138,D:\Курсач 3.0\Unit1.pas=D:\Курсач 3.0\UnitLoadScreen.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.084,D:\Курсач 3.0\Chess.dproj=D:\Курсач 3.0\Сhess.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.138,D:\Курсач 3.0\Unit1.dfm=D:\Курсач 3.0\UnitLoadScreen.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.738,D:\Курсач 3.0\chess.dproj=D:\Курсач 3.0\Шахматы.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.219,D:\Курсач 3.0\Chess.dproj=D:\Курсач 3.0\Ches.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.978,D:\Курсач 3.0\Chess.dproj=D:\Курсач 3.0\Ches.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.119,=D:\Курсач 3.0\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.406,=D:\Курсач 3.0\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.781,=D:\Курсач 3.0\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.328,=D:\Курсач 3.0\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.303,=D:\Курсач 3.0\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.530,D:\Курсач 3.0\Unit1.pas=D:\Курсач 3.0\LogicUnit.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.412,D:\Курсач 3.0\Unit1.pas=D:\Курсач 3.0\DateUnit.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.981,=D:\Курсач 3.0\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.818,=D:\Курсач 3.0\Unit1.pas</Transaction>
+  </Transactions>
+</BorlandProject>

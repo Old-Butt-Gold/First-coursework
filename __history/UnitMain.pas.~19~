@@ -1,0 +1,224 @@
+unit UnitMain;
+
+interface
+
+uses
+  Winapi.Windows, System.SysUtils, System.Classes, Vcl.Controls, Vcl.Forms, Vcl.ExtCtrls, ChessBoard,
+  Vcl.StdCtrls, Vcl.Menus, Vcl.Dialogs, DateUnit, Winapi.ShellAPI;
+
+type
+  TGameState = (GsStart, GsGoing, GsEnd);
+  TFMainForm = class(TForm)
+      TIconsRadioGroup: TRadioGroup;
+      TLogMemo: TMemo;
+      TEmptyPopupMenu: TPopupMenu;
+      TKillLabel: TLabel;
+      Menu: TMainMenu;
+      C1: TMenuItem;
+      F1: TMenuItem;
+      TSaveLog: TMenuItem;
+      OpenGame: TOpenDialog;
+      SaveFile: TSaveDialog;
+      H1: TMenuItem;
+      About: TMenuItem;
+      Guide: TMenuItem;
+      N1: TMenuItem;
+      SaveGame: TMenuItem;
+      LoadGame: TMenuItem;
+      Sound: TMenuItem;
+      N2: TMenuItem;
+      Reverse: TMenuItem;
+      N3: TMenuItem;
+      ExitGame: TMenuItem;
+      SaveParty: TSaveDialog;
+      N4: TMenuItem;
+      Reset: TMenuItem;
+      Function CountOfFiles(Dir: String): Integer;
+      procedure FormCreate(Sender: TObject);
+      procedure FormPaint(Sender: TObject);
+      procedure FormMouseDown(Sender: TObject; Button: TMouseButton;
+        Shift: TShiftState; X, Y: Integer);
+      procedure TIconsRadioGroupClick(Sender: TObject);
+      procedure TSaveLogClick(Sender: TObject);
+      procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+      procedure AboutClick(Sender: TObject);
+      procedure ExitGameClick(Sender: TObject);
+      procedure SoundClick(Sender: TObject);
+      procedure SaveGameClick(Sender: TObject);
+      procedure LoadGameClick(Sender: TObject);
+      procedure ReverseClick(Sender: TObject);
+      procedure ResetClick(Sender: TObject);
+      procedure FormDestroy(Sender: TObject);
+    procedure GuideClick(Sender: TObject);
+  private
+      FPath: String;
+      FState: TGameState;
+      Chess: TChessBoard;
+  public
+      Property State: TGameState read FState write FState;
+  end;
+
+var
+    FMainForm: TFMainForm;
+
+implementation
+
+{$R *.dfm}
+
+uses UnitChoosePiece;
+
+procedure TFMainForm.AboutClick(Sender: TObject);
+begin
+    MessageBox(handle, 'Chess v-0.0' + #13#10 +
+    'Course work by Krutko Andrey' + #13#10 + 'group. 251004, BSUIR, 2022-2023',
+    'About', MB_OK + MB_ICONINFORMATION);
+end;
+
+procedure TFMainForm.ExitGameClick(Sender: TObject);
+begin
+    Close;
+end;
+
+procedure TFMainForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+    CanClose := MessageBox(Handle, 'Do you want to exit game?', 'Exit', MB_YESNO + MB_ICONQUESTION) = ID_YES;
+end;
+
+procedure TFMainForm.FormCreate(Sender: TObject);
+Var
+    I: Integer;
+    IsIncorrect: Boolean;
+begin
+    IsIncorrect := True;
+    TKillLabel.Left := TLogMemo.Left - 250;
+    I := 0;
+    While IsIncorrect and (I < 8) do
+    Begin
+        FPath := ExtractFileDir(paramStr(0)) + '\' + TIconsRadioGroup.Items[I];
+        If DirectoryExists(FPath) and (CountOfFiles(FPath) = 12) Then
+        Begin
+            Chess := TChessBoard.Create(Canvas, FPath);
+            FState := GsGoing;
+            IsIncorrect := False;
+        End;
+        Inc(I);
+    End;
+end;
+
+procedure TFMainForm.FormDestroy(Sender: TObject);
+begin
+    If Assigned(Chess) Then
+        Chess.Destroy;
+end;
+
+procedure TFMainForm.FormMouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+    If FState = GsGoing Then
+        Chess.CheckClick(X, Y);
+end;
+
+procedure TFMainForm.FormPaint(Sender: TObject);
+begin
+    If (FState <> GsStart) Then
+        Chess.PaintBoard;
+end;
+
+procedure TFMainForm.GuideClick(Sender: TObject);
+Const
+    HelpURL = 'https://chessday.ru/blog/39-pravila-shahmat';
+begin
+    ShellExecute(Handle, nil, PChar(HelpURL), nil, nil, SW_ShowNormal);
+end;
+
+procedure TFMainForm.LoadGameClick(Sender: TObject);
+begin
+    If (FState <> GsStart) and OpenGame.Execute Then
+    Begin
+        Chess.LoadGame(OpenGame.FileName);
+        State := GsGoing;
+        Invalidate;
+    End;
+end;
+
+procedure TFMainForm.ResetClick(Sender: TObject);
+Var
+    I: Integer;
+    IsIncorrect: Boolean;
+begin
+    If (FState <> GsStart) and (MessageBox(Handle, 'Are you sure?', 'Reset', MB_YESNO + MB_ICONQUESTION) = ID_YES) Then
+    Begin
+        IsIncorrect := True;
+        I := 0;
+        While IsIncorrect and (I < 8) do
+        Begin
+            FPath := ExtractFileDir(paramStr(0)) + '\' + TIconsRadioGroup.Items[I];
+            If DirectoryExists(FPath) and (CountOfFiles(FPath) = 12) Then
+            Begin
+                Chess.Destroy;
+                TLogMemo.Clear;
+                Chess := TChessBoard.Create(Canvas, FPath);
+                Invalidate;
+                FState := GsGoing;
+                IsIncorrect := False;
+            End;
+            Inc(I);
+        End;
+    End;
+end;
+
+procedure TFMainForm.ReverseClick(Sender: TObject);
+begin
+    If (FState = GsStart) or (Chess.CurrentColor = CcWhite) Then
+        Reverse.Checked := Not Reverse.Checked
+    Else
+        MessageBox(Handle, 'Black must make a move to be able to reverse the board!', 'Warning', MB_OK + MB_ICONINFORMATION);
+end;
+
+procedure TFMainForm.SaveGameClick(Sender: TObject);
+begin
+    If (FState = GsGoing) and SaveParty.Execute Then
+        Chess.SaveGame(SaveParty.FileName);
+
+
+end;
+
+procedure TFMainForm.SoundClick(Sender: TObject);
+begin
+    Sound.Checked := Not Sound.Checked;
+end;
+
+Function TFMainForm.CountOfFiles(Dir: string) : integer;
+var
+  Fs: TSearchRec;
+  Count: Integer;
+Begin
+    Count := 0;
+    If FindFirst(Dir + '\*.bmp', faAnyFile - faDirectory, fs) = 0 Then
+        Repeat
+            Inc(Count);
+        Until FindNext(fs) <> 0;
+    FindClose(Fs);
+    CountOfFiles := Count;
+end;
+
+procedure TFMainForm.TIconsRadioGroupClick(Sender: TObject);
+begin
+    If FState <> GsStart Then
+    Begin
+        FPath := ExtractFileDir(paramStr(0)) + '\' + TRadioGroup(Sender).Items[TRadioGroup(Sender).ItemIndex] + '\';
+        If DirectoryExists(FPath) and (CountOfFiles(FPath) = 12) Then
+            Chess.ResetPieceIcons(FPath, TRadioGroup(Sender).Items[TRadioGroup(Sender).ItemIndex] + '\')
+        Else
+            MessageBox(Application.Handle, 'Directory with this icons wasn''t found!', 'Warning!', MB_OK + MB_ICONWARNING);
+    End;
+    FMainForm.FocusControl(Nil);
+end;
+
+procedure TFMainForm.TSaveLogClick(Sender: TObject);
+begin
+    If (FState <> GsStart) and SaveFile.Execute Then
+        Chess.SaveLogToFile(SaveFile.FileName);
+end;
+
+end.

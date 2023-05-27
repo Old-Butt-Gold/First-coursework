@@ -1,0 +1,259 @@
+unit LinkedListUnit;
+
+interface
+
+uses
+    Winapi.Windows, Vcl.Graphics, SysUtils, DateUnit;
+
+Type
+    TLogChar = Array [1..16] of Char;
+    PKilledPiecesList = ^TKilledPiecesList;
+    TKilledPiecesList = Record
+        PosPaint: TChessPos;
+        BitMap: TBitMap;
+        ChessType: TChessPiece;
+        Next: PKilledPiecesList;
+    End;
+    TLinkedList = record
+        Head, Tail: PKilledPiecesList;
+    end;
+
+    PLinkedLogInfo = ^TLinkedLogInfo;
+    TLinkedLogInfo = Record
+        CurrentMoveInfo: String[30];
+        Next: PLinkedLogInfo;
+    end;
+    TLinkedLogList = Record
+        Head, Tail: PLinkedLogInfo;
+    end;
+
+    TLinkedUnit = Class
+    private
+        FListOfKilled: TLinkedList;
+        FLogArr: TLogChar;
+        FLogList: TLinkedLogList;
+        Procedure FreeLogList;
+        Procedure FreeKilledList;
+        Procedure SetLogChars;
+        Procedure InsertInList(Temp: PKilledPiecesList);
+        Function  GetNameOfIcon(ChessType: TChessPiece): String;
+    public
+        Procedure InsertCurrentMoveText(FCurrentMoveColor: TChessColor; Index, YStart, XStart, YEnd, XEnd: Integer);
+        Procedure DrawKilledPieces(ACanvas: TCanvas);
+        Procedure AddKilledPieceFromFile(ChessType: TChessPiece; Path: String; KilledPos: TChessPos);
+        Procedure InsertCurrentStroke(Text: String);
+        Procedure InsertKilledPiece(KilledPos: TChessPos; ChessPiece: TChessPiece; Bitmap: TBitmap; X, Y: Integer);
+        Procedure ChangeBitMapInKilledList(Current: PKilledPiecesList; Dir, Path: String; ACanvas: TCanvas);
+        Procedure ResetKilledIcons(Dir: String; ACanvas: TCanvas);
+        Constructor Create;
+        Destructor Destroy;
+        Procedure SaveLogToFile(Path: String);
+    End;
+
+implementation
+
+uses UnitMain;
+
+Destructor TLinkedUnit.Destroy;
+Begin
+    FreeLogList;
+    FreeKilledList;
+End;
+
+Constructor TLinkedUnit.Create;
+Begin
+    SetLogChars;
+End;
+
+Procedure TLinkedUnit.SaveLogToFile(Path: String);
+Var
+    Temp: PLinkedLogInfo;
+    FileOutput: TextFile;
+Begin
+    Temp := FLogList.Head;
+    Try
+        Try
+            AssignFile(FileOutput, ChangeFileExt(Path, '.txt'));
+            Rewrite(FileOutput);
+            While Temp <> nil do
+            Begin
+                Writeln(FileOutput, Temp^.CurrentMoveInfo);
+                Temp := Temp^.Next;
+            End;
+        Except
+            MessageBox(FMainForm.Handle, 'File isn''t correct. Try with another file!', 'Warning!', MB_OK + MB_ICONWARNING);
+        End;
+    Finally
+        CloseFile(FileOutput);
+    End;
+End;
+
+Procedure TLinkedUnit.SetLogChars;
+Var
+    I: Integer;
+Begin
+    For I := 1 to 8 do
+        FLogArr[I] := #32;
+    FLogArr[9] := 'R';
+    FLogArr[10] := 'R';
+    FLogArr[11] := 'N';
+    FLogArr[12] := 'N';
+    FLogArr[13] := 'B';
+    FLogArr[14] := 'B';
+    FLogArr[15] := 'Q';
+    FLogArr[16] := 'K';
+End;
+
+Function TLinkedUnit.GetNameOfIcon(ChessType: TChessPiece): String;
+Begin
+    Case ChessType of
+        CpPawn:
+            GetNameOfIcon := '_pawn.bmp';
+        CpRook:
+            GetNameOfIcon := '_rook.bmp';
+        CpKnight:
+            GetNameOfIcon := '_knight.bmp';
+        CpBishop:
+            GetNameOfIcon := '_bishop.bmp';
+        CpQueen:
+            GetNameOfIcon := '_queen.bmp';
+        CpKing:
+            GetNameOfIcon := '_king.bmp';
+    end;
+End;
+
+Procedure TLinkedUnit.ChangeBitMapInKilledList(Current: PKilledPiecesList; Dir, Path: String; ACanvas: TCanvas);
+Begin
+    If Current^.PosPaint.X < FMainForm.TLogMemo.Left - 200 Then
+        Dir := Dir + 'w' + Path
+    Else
+        Dir := Dir + 'b' + Path;
+    Current^.BitMap.Assign(Nil);
+    Current^.BitMap.LoadFromFile(Dir);
+    ACanvas.Rectangle(Current^.PosPaint.X, Current^.PosPaint.Y, Current^.PosPaint.X + 80, Current^.PosPaint.Y + 80);
+    ACanvas.Draw(Current^.PosPaint.X, Current^.PosPaint.Y, Current^.BitMap);
+End;
+
+Procedure TLinkedUnit.ResetKilledIcons(Dir: String; ACanvas: TCanvas);
+Var
+    Temp: PKilledPiecesList;
+Begin
+    Temp := FListOfKilled.Head;
+    While Temp <> Nil do
+    Begin
+        ChangeBitMapInKilledList(Temp, Dir, GetNameOfIcon(Temp^.ChessType), ACanvas);
+        Temp := Temp^.Next;
+    End;
+End;
+
+Procedure TLinkedUnit.InsertInList(Temp: PKilledPiecesList);
+Begin
+    If FListOfKilled.Head = Nil Then
+    Begin
+        FListOfKilled.Head := Temp;
+        FListOfKilled.Tail := Temp;
+    End
+    Else
+    Begin
+        FListOfKilled.Tail^.Next:= Temp;
+        FListOfKilled.Tail := FListOfKilled.Tail^.Next;
+    End;
+End;
+
+Procedure TLinkedUnit.InsertCurrentMoveText(FCurrentMoveColor: TChessColor; Index, YStart, XStart, YEnd, XEnd: Integer);
+Begin
+    With FMainForm.TLogMemo do
+        If FCurrentMoveColor = CcBlack Then
+            Lines.Append((IntToStr(Lines.Count) + ':    ' + FLogArr[Index] + ' ' + Chr(YStart + 97) + IntToStr(8 - XStart) + '—' + Chr(YEnd + 97) + IntToStr(8 - XEnd) + '    '))
+        Else
+        Begin
+            Lines[Lines.Count - 1] := Lines[Lines.Count - 1] + FLogArr[Index] + ' ' + Chr(YStart + 97) + IntToStr(8 - XStart)  + '—' + Chr(YEnd + 97) + IntToStr(8 - XEnd);
+            InsertCurrentStroke(Lines[Lines.Count - 1]);
+        End;
+End;
+
+Procedure TLinkedUnit.FreeLogList;
+Var
+    Temp: PLinkedLogInfo;
+Begin
+    While FLogList.Head <> Nil do
+    Begin
+        Temp := FLogList.Head;
+        FLogList.Head := FLogList.Head^.Next;
+        Dispose(Temp);
+    End;
+    FLogList.Tail := Nil;
+End;
+
+Procedure TLinkedUnit.FreeKilledList;
+Var
+    Temp: PKilledPiecesList;
+Begin
+    While FListOfKilled.Head <> Nil do
+    Begin
+        Temp := FListOfKilled.Head;
+        FListOfKilled.Head := FListOfKilled.Head^.Next;
+        Dispose(Temp);
+    End;
+    FListOfKilled.Tail := Nil;
+End;
+
+Procedure TLinkedUnit.DrawKilledPieces(ACanvas: TCanvas);
+Var
+    Temp: PKilledPiecesList;
+Begin
+    Temp := FListOfKilled.Head;
+    While Temp <> Nil do
+    Begin
+        ACanvas.Draw(Temp^.PosPaint.X, Temp^.PosPaint.Y, Temp^.BitMap);
+        Temp := Temp^.Next;
+    End;
+End;
+
+Procedure TLinkedUnit.InsertKilledPiece(KilledPos: TChessPos; ChessPiece: TChessPiece; Bitmap: TBitmap; X, Y: Integer);
+Var
+    Temp: PKilledPiecesList;
+begin
+    New(Temp);
+    Temp^.PosPaint := KilledPos;
+    Temp^.BitMap := TBitMap.Create;
+    Temp^.BitMap.Transparent := True;
+    Temp^.ChessType := ChessPiece;
+    Temp^.BitMap.Assign(Bitmap);
+    Temp^.Next:= nil;
+    InsertInList(Temp);
+end;
+
+Procedure TLinkedUnit.AddKilledPieceFromFile(ChessType: TChessPiece; Path: String; KilledPos: TChessPos);
+Var
+    KilledPiece: PKilledPiecesList;
+Begin
+    New(KilledPiece);
+    KilledPiece^.BitMap := TBitMap.Create;
+    KilledPiece^.BitMap.Transparent := True;
+    KilledPiece^.ChessType := ChessType;
+    KilledPiece^.BitMap.LoadFromFile(Path);
+    KilledPiece^.PosPaint := KilledPos;
+    InsertInList(KilledPiece);
+End;
+
+Procedure TLinkedUnit.InsertCurrentStroke(Text: string);
+Var
+    Temp: PLinkedLogInfo;
+Begin
+    New(Temp);
+    Temp^.CurrentMoveInfo := Text;
+    Temp^.Next:= Nil;
+    If FLogList.Head = Nil Then
+    Begin
+        FLogList.Head := Temp;
+        FLogList.Tail := Temp;
+    End
+    Else
+    Begin
+        FLogList.Tail^.Next:= Temp;
+        FLogList.Tail := FLogList.Tail^.Next;
+    End;
+End;
+
+end.
